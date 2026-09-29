@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and package
+        env:
+          WHYPORT_VERSION: ${{ github.ref_name }}
+        run: app/build-app.sh --universal --dmg
+
+      - name: Fill in the Homebrew cask
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(shasum -a 256 app/.build/WhyPort.dmg | cut -d' ' -f1)"
+          sed -e "s/__VERSION__/$version/" \
+              -e "s/__SHA256__/$sha/" \
+              -e "s#__REPOSITORY__#$GITHUB_REPOSITORY#g" \
+              packaging/homebrew/whyport.rb > app/.build/whyport.rb
+          echo "sha256 $sha" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            app/.build/WhyPort.dmg \
+            app/.build/whyport.rb \
+            --title "WhyPort ${GITHUB_REF_NAME#v}" \
+            --generate-notes

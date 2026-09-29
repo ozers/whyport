@@ -1,0 +1,22 @@
+{
+  "name": "whyport",
+  "version": "0.1.0",
+  "description": "See why a port is open, where it is used, and close it.",
+  "type": "module",
+  "bin": {
+    "whyport": "./src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "start": "node ./src/cli.js"
+  }
+}
