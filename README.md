@@ -31,15 +31,15 @@ Requires macOS 14 (Sonoma) or later, on Apple Silicon or Intel.
 
 1. Download `WhyPort.dmg` from [Releases](https://github.com/ozers/whyport/releases/latest).
 2. Open it and drag **WhyPort** into **Applications**.
-3. Open WhyPort. The app isn't notarized by Apple yet, so macOS blocks it the first time. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
+3. Open WhyPort.
 
-If you prefer the terminal, this removes the block instead of step 3:
+Notarized releases (Developer ID) open like any other Mac app. If a build is not notarized yet, macOS blocks the first open: go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**, or run:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/WhyPort.app
 ```
 
-To build it yourself, see [Build from source](#build-from-source).
+To build it yourself, see [Build from source](#build-from-source). To ship Gatekeeper-clean builds, see [docs/APPLE.md](docs/APPLE.md).
 
 ## How to use it
 
@@ -113,7 +113,7 @@ Click the gear at the bottom of the list.
 ## FAQ
 
 **macOS says WhyPort can't be opened.**
-The app isn't notarized yet. Use **Open Anyway** in System Settings → Privacy & Security, or the `xattr` command from [Install](#install).
+That release isn't notarized. Use **Open Anyway** in System Settings → Privacy & Security, or the `xattr` command from [Install](#install). Maintainers: set the secrets in [docs/APPLE.md](docs/APPLE.md) so new tags ship notarized.
 
 **A server I'm running doesn't show up.**
 Switch to **Everything**. If it's there, WhyPort couldn't find a project folder for it: no `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `build.gradle` or similar above its working directory. Servers started by another user, such as `root`, aren't visible.
@@ -155,19 +155,19 @@ It rescans every 2 seconds while the window is open and every 10 seconds in the 
 
 ### Releasing
 
+WhyPort ships **outside the Mac App Store** (notarized Developer ID DMG). App Sandbox would block the process inspection and stop/restart features, so the Mac App Store is not a fit — see [docs/APPLE.md](docs/APPLE.md).
+
 Push a version tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 GitHub Actions then does the rest:
-1. It builds a universal app and packs it into `WhyPort.dmg`.
-2. It creates a GitHub release with the DMG attached.
-3. It attaches a filled-in Homebrew cask (`whyport.rb`) to the same release.
-
-If these repository secrets are set, the workflow also signs the app with a Developer ID and has Apple notarize it. Then macOS opens it without the "can't be opened" warning. Without them, the release is ad-hoc signed.
+1. It builds a universal app (hardened runtime + entitlements + privacy manifest) and packs it into `WhyPort.dmg`.
+2. If the Apple secrets are set, it signs with a Developer ID, notarizes with Apple, and staples the ticket.
+3. It creates a GitHub release with the DMG and a filled-in Homebrew cask (`whyport.rb`).
 
 | Secret | What it is |
 | --- | --- |
@@ -176,6 +176,8 @@ If these repository secrets are set, the workflow also signs the app with a Deve
 | `APPLE_ID` | The Apple ID email of the developer account |
 | `APPLE_TEAM_ID` | The 10-character team ID from developer.apple.com |
 | `APPLE_APP_PASSWORD` | An app-specific password from account.apple.com |
+
+Full walkthrough (App ID, certificate export, secrets, local notarize): [docs/APPLE.md](docs/APPLE.md).
 
 ### Command line version
 
