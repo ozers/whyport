@@ -12,8 +12,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Core checks
         run: app/build-app.sh --test
-      - name: Build universal app
-        run: app/build-app.sh --universal
+      - name: Build universal app and disk image
+        run: app/build-app.sh --universal --dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WhyPort.dmg
+          path: app/.build/WhyPort.dmg
+          retention-days: 14
 
   cli:
     runs-on: macos-15
