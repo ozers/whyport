@@ -27,12 +27,17 @@ jobs:
           security create-keychain -p "$password" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
-          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productsign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
           security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
           identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          if [[ -z "$identity" ]]; then
+            echo "No Developer ID Application identity found in the imported certificate." >&2
+            exit 1
+          fi
           echo "SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
-          rm "$RUNNER_TEMP/certificate.p12"
+          echo "Signing as $identity"
+          rm -f "$RUNNER_TEMP/certificate.p12"
 
       - name: Build and package
         env:
@@ -46,9 +51,27 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          for key in APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
+            if [[ -z "${!key}" ]]; then
+              echo "Missing secret $key (needed with MACOS_CERTIFICATE). See docs/APPLE.md." >&2
+              exit 1
+            fi
+          done
           xcrun notarytool submit app/.build/WhyPort.dmg \
             --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
           xcrun stapler staple app/.build/WhyPort.dmg
+          xcrun stapler validate app/.build/WhyPort.dmg
+          spctl --assess --type open --context context:primary-signature -v app/.build/WhyPort.dmg
+          echo "Notarized and stapled WhyPort.dmg" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Note when signing is skipped
+        if: env.SIGNING != 'true'
+        run: |
+          {
+            echo "### Ad-hoc build"
+            echo "MACOS_CERTIFICATE is not set, so this release is **not** notarized."
+            echo "Users will need Open Anyway. Set the secrets in docs/APPLE.md to ship Gatekeeper-clean builds."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fill in the Homebrew cask
         run: |
@@ -64,8 +87,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          notes=()
+          if [[ "${SIGNING}" == "true" ]]; then
+            notes+=(--notes "Notarized Developer ID build. Drag WhyPort into Applications and open it — Gatekeeper should accept it.")
+          else
+            notes+=(--notes "Ad-hoc signed build (not notarized). First open needs System Settings → Privacy & Security → Open Anyway. See docs/APPLE.md to enable Apple notarization.")
+          fi
           gh release create "$GITHUB_REF_NAME" \
             app/.build/WhyPort.dmg \
             app/.build/whyport.rb \
             --title "WhyPort ${GITHUB_REF_NAME#v}" \
-            --generate-notes
+            --generate-notes \
+            "${notes[@]}"

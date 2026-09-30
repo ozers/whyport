@@ -13,6 +13,7 @@ Usage: ./build-app.sh [--install] [--universal] [--dmg] [--test]
 
   SIGN_IDENTITY="Developer ID Application: ..."  sign for distribution
   instead of ad-hoc, with the hardened runtime notarization needs.
+  See docs/APPLE.md for the full Apple Developer setup.
 EOF
 }
 
@@ -31,6 +32,7 @@ done
 cd "$(dirname "$0")"
 BUILD=".build/manual"
 APP=".build/WhyPort.app"
+ENTITLEMENTS="WhyPort.entitlements"
 mkdir -p "$BUILD"
 
 # Command Line Tools can ship an SDK newer than its compiler, so pick the newest SDK this swiftc accepts.
@@ -50,6 +52,24 @@ pick_sdk() {
   done
   echo "No macOS SDK works with $(swiftc --version 2>&1 | head -1)" >&2
   exit 1
+}
+
+sign_app() {
+  local target="$1"
+  if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    codesign --force --options runtime --timestamp \
+      --entitlements "$ENTITLEMENTS" \
+      --sign "$SIGN_IDENTITY" \
+      "$target/Contents/MacOS/WhyPort"
+    codesign --force --options runtime --timestamp \
+      --entitlements "$ENTITLEMENTS" \
+      --sign "$SIGN_IDENTITY" \
+      "$target"
+    codesign --verify --deep --strict --verbose=2 "$target"
+    echo "Signed with $SIGN_IDENTITY (hardened runtime)"
+  else
+    codesign --force --sign - --entitlements "$ENTITLEMENTS" "$target" >/dev/null
+  fi
 }
 
 SDK="$(pick_sdk)"
@@ -96,17 +116,15 @@ cp Info.plist "$APP/Contents/Info.plist"
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
+if [[ -f Resources/PrivacyInfo.xcprivacy ]]; then
+  cp Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/PrivacyInfo.xcprivacy"
+fi
 if [[ -n "${WHYPORT_VERSION:-}" ]]; then
   version="${WHYPORT_VERSION#v}"
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$APP/Contents/Info.plist"
   /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$APP/Contents/Info.plist"
 fi
-if [[ -n "${SIGN_IDENTITY:-}" ]]; then
-  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
-  echo "Signed with $SIGN_IDENTITY"
-else
-  codesign --force --sign - "$APP" >/dev/null
-fi
+sign_app "$APP"
 echo "Built $APP"
 
 if [[ "$DMG" == 1 ]]; then
