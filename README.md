@@ -138,8 +138,11 @@ cd whyport/app
 | --- | --- |
 | `./build-app.sh` | Builds `app/.build/WhyPort.app` for this Mac |
 | `./build-app.sh --install` | Builds, copies to `/Applications` and opens it |
-| `./build-app.sh --universal --dmg` | Apple Silicon + Intel build, packed into `WhyPort.dmg` |
+| `./build-app.sh --universal --dmg` | Apple Silicon + Intel build, packed into `WhyPort.dmg` with a drag-to-Applications window |
 | `./build-app.sh --test` | Runs the checks |
+| `./make-artwork.sh` | Renders the app icon and DMG background from `Sources/WhyPort/Artwork.swift` |
+
+Every push to `main` and every pull request also builds `WhyPort.dmg` in GitHub Actions. You can download it from the run's **Artifacts**.
 
 ### How it works
 
@@ -163,6 +166,16 @@ GitHub Actions then does the rest:
 1. It builds a universal app and packs it into `WhyPort.dmg`.
 2. It creates a GitHub release with the DMG attached.
 3. It attaches a filled-in Homebrew cask (`whyport.rb`) to the same release.
+
+If these repository secrets are set, the workflow also signs the app with a Developer ID and has Apple notarize it. Then macOS opens it without the "can't be opened" warning. Without them, the release is ad-hoc signed.
+
+| Secret | What it is |
+| --- | --- |
+| `MACOS_CERTIFICATE` | The Developer ID Application certificate exported as `.p12`, base64 encoded (`base64 -i cert.p12 \| pbcopy`) |
+| `MACOS_CERTIFICATE_PASSWORD` | The password you gave the `.p12` export |
+| `APPLE_ID` | The Apple ID email of the developer account |
+| `APPLE_TEAM_ID` | The 10-character team ID from developer.apple.com |
+| `APPLE_APP_PASSWORD` | An app-specific password from account.apple.com |
 
 ### Command line version
 

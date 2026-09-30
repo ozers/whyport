@@ -15,6 +15,16 @@ enum Snapshot {
         let app = NSApplication.shared
         app.setActivationPolicy(.prohibited)
 
+        switch options.page {
+        case "icon":
+            let side = AppIconArt.size
+            return write(AppIconArt(), size: CGSize(width: side, height: side), options: options)
+        case "dmg-background":
+            return write(DMGBackgroundArt(), size: DMGBackgroundArt.size, options: options)
+        default:
+            break
+        }
+
         let store = PortStore(autostart: false)
         if options.demo {
             store.show(Demo.entries, history: Demo.history)
@@ -59,6 +69,10 @@ enum Snapshot {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .environment(\.controlActiveState, .key)
+        write(view, size: size, options: options)
+    }
+
+    private static func write<V: View>(_ view: V, size: CGSize, options: Options) {
         let host = NSHostingView(rootView: view)
         host.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -85,9 +99,10 @@ private struct SocialPreview<Content: View>: View {
     var body: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 18) {
-                Image(systemName: "point.3.filled.connected.trianglepath.dotted")
-                    .font(.system(size: 44, weight: .medium))
-                    .foregroundStyle(Palette.port(3000))
+                AppIconArt()
+                    .scaleEffect(120 / AppIconArt.size)
+                    .frame(width: 120, height: 120)
+                    .padding(.leading, -12)
                 Text("WhyPort").font(.system(size: 64, weight: .bold))
                 Text("See why a port is open,\nwho is using it,\nand stop it in one click.")
                     .font(.system(size: 28))

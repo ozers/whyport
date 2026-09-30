@@ -10,6 +10,9 @@ Usage: ./build-app.sh [--install] [--universal] [--dmg] [--test]
   --universal  build for Apple Silicon and Intel
   --dmg        also package .build/WhyPort.dmg
   --test       run the core checks and exit
+
+  SIGN_IDENTITY="Developer ID Application: ..."  sign for distribution
+  instead of ad-hoc, with the hardened runtime notarization needs.
 EOF
 }
 
@@ -90,20 +93,46 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BUILD/WhyPort" "$APP/Contents/MacOS/WhyPort"
 cp Info.plist "$APP/Contents/Info.plist"
-if [[ -n "${WHYPORT_VERSION:-}" ]]; then
-  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${WHYPORT_VERSION#v}" "$APP/Contents/Info.plist"
+if [[ -f Resources/AppIcon.icns ]]; then
+  cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi
-codesign --force --sign - "$APP" >/dev/null
+if [[ -n "${WHYPORT_VERSION:-}" ]]; then
+  version="${WHYPORT_VERSION#v}"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$APP/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $version" "$APP/Contents/Info.plist"
+fi
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP"
+  echo "Signed with $SIGN_IDENTITY"
+else
+  codesign --force --sign - "$APP" >/dev/null
+fi
 echo "Built $APP"
 
 if [[ "$DMG" == 1 ]]; then
-  STAGE="$BUILD/dmg"
-  rm -rf "$STAGE" .build/WhyPort.dmg
-  mkdir -p "$STAGE"
-  cp -R "$APP" "$STAGE/WhyPort.app"
-  ln -s /Applications "$STAGE/Applications"
-  hdiutil create -volname WhyPort -srcfolder "$STAGE" -ov -format UDZO .build/WhyPort.dmg >/dev/null
-  echo "Packaged .build/WhyPort.dmg"
+  DMG_PATH=".build/WhyPort.dmg"
+  rm -f "$DMG_PATH"
+  VENV=".build/venv"
+  if [[ ! -x "$VENV/bin/dmgbuild" ]]; then
+    python3 -m venv "$VENV" && "$VENV/bin/pip" install --quiet --disable-pip-version-check dmgbuild || rm -rf "$VENV"
+  fi
+  if [[ -x "$VENV/bin/dmgbuild" ]]; then
+    "$VENV/bin/dmgbuild" -s ../packaging/dmg/settings.py \
+      -D app="$APP" -D background=Resources/dmg-background.tiff -D icon=Resources/AppIcon.icns \
+      WhyPort "$DMG_PATH" >/dev/null
+  else
+    echo "dmgbuild unavailable, packaging a plain disk image" >&2
+    STAGE="$BUILD/dmg"
+    rm -rf "$STAGE"
+    mkdir -p "$STAGE"
+    cp -R "$APP" "$STAGE/WhyPort.app"
+    ln -s /Applications "$STAGE/Applications"
+    hdiutil create -volname WhyPort -srcfolder "$STAGE" -ov -format UDZO "$DMG_PATH" >/dev/null
+  fi
+  if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+  fi
+  echo "Packaged $DMG_PATH"
 fi
 
 if [[ "$INSTALL" == 1 ]]; then
