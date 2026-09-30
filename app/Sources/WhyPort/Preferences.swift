@@ -49,6 +49,9 @@ final class Preferences: ObservableObject {
     @Published var memoryLimitMB: Int { didSet { defaults.set(memoryLimitMB, forKey: "memoryLimitMB") } }
     @Published var hidden: Set<String> { didSet { defaults.set(Array(hidden), forKey: "hidden") } }
     @Published var pinned: Set<String> { didSet { defaults.set(Array(pinned), forKey: "pinned") } }
+    @Published var showCount: Bool { didSet { defaults.set(showCount, forKey: "showCount") } }
+    @Published var confirmServers: Bool { didSet { defaults.set(confirmServers, forKey: "confirmServers") } }
+    @Published var hideHighPorts: Bool { didSet { defaults.set(hideHighPorts, forKey: "hideHighPorts") } }
 
     init() {
         defaults.register(defaults: [
@@ -57,7 +60,13 @@ final class Preferences: ObservableObject {
             "notifyExposed": true,
             "notifyMemory": true,
             "memoryLimitMB": 2048,
+            "showCount": true,
+            "confirmServers": false,
+            "hideHighPorts": true,
         ])
+        showCount = defaults.bool(forKey: "showCount")
+        confirmServers = defaults.bool(forKey: "confirmServers")
+        hideHighPorts = defaults.bool(forKey: "hideHighPorts")
         editorID = defaults.string(forKey: "editor")
             ?? LaunchTarget.editors.first(where: \.isInstalled)?.id
             ?? LaunchTarget.editors[0].id
@@ -80,5 +89,20 @@ final class Preferences: ObservableObject {
 
     func togglePinned(_ identity: String) {
         if pinned.contains(identity) { pinned.remove(identity) } else { pinned.insert(identity) }
+    }
+
+    static func label(for identity: String) -> String {
+        guard let colon = identity.firstIndex(of: ":") else { return identity }
+        let kind = identity[..<colon]
+        let rest = identity[identity.index(after: colon)...]
+        let parts = rest.split(separator: "|", maxSplits: 1).map(String.init)
+        switch kind {
+        case "container": return String(rest)
+        case "project":
+            let name = ((parts.first ?? "") as NSString).lastPathComponent
+            return parts.count > 1 ? "\(name) · \(parts[1])" : name
+        default:
+            return parts.last ?? String(rest)
+        }
     }
 }

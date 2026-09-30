@@ -1,40 +1,132 @@
-# whyport
+# WhyPort
 
-See why a port is open, where it is used, and close it. From the macOS menu bar.
+**A macOS menu bar app that shows which ports your dev servers are using, explains why each one is open, and stops it with one click.**
 
-Click the icon, or press **⌃⌥P** anywhere, and you get every port your projects are listening on: the project and git branch behind it, the Docker container that publishes it, how long it has been running, its memory, and whether anything is connected. Click a row for the full story, then stop or restart it with one button.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/list-dark.png">
+    <img src="docs/list-light.png" width="380" alt="WhyPort listing six ports with their projects, branches and memory">
+  </picture>
+  &nbsp;
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/detail-dark.png">
+    <img src="docs/detail-light.png" width="380" alt="Details for port 3000: a Next.js server started with npm run dev, with memory and CPU charts">
+  </picture>
+</p>
 
-## What it does
+## Why
 
-- **Why it is open** - one sentence per port: which program, which project and branch, what launched it (`npm run dev`, `go run`, a Gradle task), localhost or the whole network, and who is connected
-- **Where it is used** - live connections with the process on the other end
-- **Stops the whole thing** - `npm run dev`, its shell and its server stop together, so nothing respawns. Terminals, editors, coding agents and shared build daemons are never part of the group
-- **Restart** - stops the group and runs the same command again in the same folder. Output goes to `~/Library/Logs/WhyPort`
-- **Force quit** - if a process ignores the stop request, a Force quit button appears
-- **Network exposure** - ports bound to all interfaces get an orange badge and a filter, with the LAN address other devices would use and how to keep it local
-- **Docker aware** - published ports show the container name and image; Stop and Restart run `docker stop` and `docker restart`
-- **Bulk stop** - Select, then pick servers yourself or let **Select idle** find the ones with no connections, no CPU and more than 30 minutes of uptime
-- **Memory and CPU charts** - ten minutes of history for the whole process group, with a memory limit that turns the menu bar icon orange
-- **Notifications** - when a port becomes reachable from the network, when memory goes over the limit, and optionally when servers start or stop. Notifications have a Stop button
-- **Pin and hide** - right-click a row to keep it on top or out of the list
-- **Open in your tools** - Cursor, VS Code, IntelliJ, Zed and more; Terminal, iTerm, Ghostty, Warp or kitty
-- **Projects or Everything** - build daemons, IDEs and system apps stay out of the way until you ask for them
+You run a project and get `Error: port 3000 is already in use`. `lsof -i :3000` gives you a PID, but not what it is, which project it belongs to, or whether you still need it. Killing it often isn't enough either: `npm run dev` starts a new server right away.
 
-Nothing leaves your Mac. The app reads `lsof`, `ps` and `docker ps`.
+WhyPort answers those questions in one place:
+
+- **Which project and branch** the server belongs to, and the command that started it (`npm run dev`, `go run`, a Gradle task, a Docker container)
+- **Who is using it**: live connections and the processes on the other end
+- **Whether other devices can reach it**: a port open on all interfaces is visible to everyone on your Wi-Fi
+- **How to get rid of it**: Stop ends the server together with the `npm`/`pnpm`/`go run` process that started it, so nothing comes back
 
 ## Install
 
-Download `WhyPort.dmg` from the latest release, open it, and drag WhyPort into Applications. The app is not notarized yet, so the first time, right-click WhyPort in Applications and choose **Open**.
+Requires macOS 14 (Sonoma) or later, on Apple Silicon or Intel.
 
-With Homebrew, once the cask is published:
+1. Download `WhyPort.dmg` from [Releases](https://github.com/ozers/whyport/releases/latest).
+2. Open it and drag **WhyPort** into **Applications**.
+3. Open WhyPort. The app isn't notarized by Apple yet, so macOS blocks it the first time. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**.
+
+If you prefer the terminal, this removes the block instead of step 3:
 
 ```bash
-brew install --cask --no-quarantine whyport
+xattr -dr com.apple.quarantine /Applications/WhyPort.app
 ```
 
-### Build it yourself
+To build it yourself, see [Build from source](#build-from-source).
 
-macOS 14 or later with the Xcode Command Line Tools (`xcode-select --install`).
+## How to use it
+
+Click the icon in the menu bar or press **⌃⌥P** from anywhere.
+
+**The list** shows one row per server. Each row shows:
+- the port
+- the project name, the framework and the git branch
+- the memory it uses and how long it has been running
+
+Some rows also carry small markers:
+
+| Marker | Meaning |
+| --- | --- |
+| Orange antenna | Reachable from your network, not only from this Mac |
+| Green dot | Something is connected right now |
+| Red memory | Over your memory limit (2 GB by default) |
+
+**Projects / Everything**: Projects shows your dev servers, databases and containers. Everything also shows editors, build daemons and system apps that happen to listen on a port.
+
+**Click a row** for the full story:
+- a one-sentence explanation
+- memory and CPU charts for the last ten minutes
+- every process in the group, and its connections
+- buttons to open it in the browser, your editor, a terminal or Finder
+
+**Stop** ends the whole group. If something ignores it, a **Force quit** button appears.
+
+**Restart** stops the server and runs the same command again in the same folder. Output goes to `~/Library/Logs/WhyPort`. Docker containers use `docker restart`.
+
+**Right-click a row** to pin it to the top, hide it, copy its URL, or open the project in your editor or terminal.
+
+**Select** lets you stop several servers at once. **Select idle** picks the ones with no connections, no CPU use and more than 30 minutes of uptime.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/select-dark.png">
+    <img src="docs/select-light.png" width="380" alt="Select mode with the idle Vite server checked and a Stop 1 button">
+  </picture>
+</p>
+
+## Settings
+
+Click the gear at the bottom of the list.
+
+- **General**:
+  - open at login
+  - the ⌃⌥P shortcut
+  - the server count next to the menu bar icon
+  - asking before stopping project servers (databases, apps and containers always ask)
+- **List**: hide temporary ports (49152 and up) in Everything. The system and apps pick these at random.
+- **Open in**: which editor and terminal the buttons use. Supported:
+  - editors: Cursor, VS Code, IntelliJ IDEA, Zed, Sublime Text, Xcode
+  - terminals: Terminal, iTerm, Ghostty, Warp, kitty
+- **Notifications**: WhyPort can notify you when:
+  - a port becomes reachable from the network
+  - a server goes over the memory limit
+  - optionally, when a server starts or stops
+
+  Notifications have a Stop button.
+- **Pinned and hidden**: everything you pinned or hid, with a button to undo it.
+- **About**: version, update check, restart logs, and Quit.
+
+## Is it safe?
+
+- **Nothing leaves your Mac.** WhyPort reads `lsof`, `ps` and `docker ps`. The only network request is the update check, and only when you click it.
+- **No admin rights.** It sees and stops only processes that run as your user.
+- **It doesn't stop the wrong things.** A stop group never includes terminals, editors, coding agents (Claude Code, Codex, Cursor), pm2, or shared build daemons such as Gradle's. Databases, apps and containers ask before stopping.
+- **Stop is polite first.** Stop sends `SIGTERM`, so servers can shut down cleanly. `SIGKILL` is sent only when you press Force quit.
+
+## FAQ
+
+**macOS says WhyPort can't be opened.**
+The app isn't notarized yet. Use **Open Anyway** in System Settings → Privacy & Security, or the `xattr` command from [Install](#install).
+
+**A server I'm running doesn't show up.**
+Switch to **Everything**. If it's there, WhyPort couldn't find a project folder for it: no `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `build.gradle` or similar above its working directory. Servers started by another user, such as `root`, aren't visible.
+
+**Restart didn't bring my server back.**
+Open the log from the detail view, or look in `~/Library/Logs/WhyPort`. Restart runs the command through your login shell, so it gets the same `PATH` as a new terminal window.
+
+**Does it work without Docker?**
+Yes. Docker support turns on by itself when the `docker` command is available.
+
+## Build from source
+
+You need macOS 14 or later and the Xcode Command Line Tools (`xcode-select --install`). Xcode itself is not needed.
 
 ```bash
 git clone https://github.com/ozers/whyport.git
@@ -44,34 +136,37 @@ cd whyport/app
 
 | Command | What it does |
 | --- | --- |
-| `./build-app.sh` | Build `app/.build/WhyPort.app` for this Mac |
-| `./build-app.sh --install` | Build, copy to `/Applications` and open |
-| `./build-app.sh --universal --dmg` | Apple Silicon + Intel build and a disk image |
-| `./build-app.sh --test` | Run the core checks |
+| `./build-app.sh` | Builds `app/.build/WhyPort.app` for this Mac |
+| `./build-app.sh --install` | Builds, copies to `/Applications` and opens it |
+| `./build-app.sh --universal --dmg` | Apple Silicon + Intel build, packed into `WhyPort.dmg` |
+| `./build-app.sh --test` | Runs the checks |
 
-## Releasing
+### How it works
 
-Push a tag and GitHub Actions does the rest:
+1. `lsof` lists TCP sockets that are listening, and the connections to them.
+2. `ps` gives the process table: commands, parents, uptime, memory and CPU. WhyPort walks up from the listening process through launchers such as npm, pnpm, yarn, bun, `go run` and `cargo run`. That finds everything that belongs to one server.
+3. It walks up from each working directory to the nearest project file for the name. `.git/HEAD` gives the branch.
+4. When Docker holds a port, `docker ps` maps it to a container.
+
+It rescans every 2 seconds while the window is open and every 10 seconds in the background.
+
+### Releasing
+
+Push a version tag:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The Release workflow builds a universal app, packages `WhyPort.dmg`, and attaches it to a GitHub release together with a filled-in `whyport.rb` Homebrew cask. Copy that file into `Casks/` of the tap repository `ozers/homebrew-whyport`, and `brew install --cask ozers/whyport/whyport` works.
+GitHub Actions then does the rest:
+1. It builds a universal app and packs it into `WhyPort.dmg`.
+2. It creates a GitHub release with the DMG attached.
+3. It attaches a filled-in Homebrew cask (`whyport.rb`) to the same release.
 
-## How it works
+### Command line version
 
-1. `lsof` lists TCP sockets in `LISTEN` and the ones that are `ESTABLISHED`.
-2. `ps` gives the whole process table: commands, parents, uptime, memory and CPU. Walking up from the listener through launchers such as npm, pnpm, yarn, bun, `go run` and `cargo run` finds the group that belongs to one server.
-3. Each working directory is walked up to the nearest `package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `build.gradle` or similar, and `.git/HEAD` gives the branch.
-4. When Docker holds a port, `docker ps` maps it to the container.
-
-It rescans every 2 seconds while the popover is open and every 10 seconds in the background.
-
-## Command line
-
-The first version was a Node CLI, and it is still here:
+WhyPort started as a small Node CLI, and it is still in the repo:
 
 ```bash
 node src/cli.js            # live table
