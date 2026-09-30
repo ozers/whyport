@@ -49,9 +49,11 @@ struct ContentView: View {
     }
 
     private var scoped: [PortEntry] {
-        showEverything
-            ? store.entries
-            : store.entries.filter { $0.kind.isProject && !preferences.hidden.contains($0.identity) }
+        guard showEverything else {
+            return store.entries.filter { $0.kind.isProject && !preferences.hidden.contains($0.identity) }
+        }
+        guard preferences.hideHighPorts else { return store.entries }
+        return store.entries.filter { $0.kind.isProject || $0.ports.contains { $0 < 49152 } }
     }
 
     private var visible: [PortEntry] {
@@ -155,8 +157,8 @@ struct ContentView: View {
                             .font(.system(size: 12, weight: .medium))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 6)
-                            .background(RoundedRectangle(cornerRadius: 7).fill(Color.orange.opacity(navigation.exposedOnly ? 0.35 : 0.14)))
-                            .foregroundStyle(.orange)
+                            .background(RoundedRectangle(cornerRadius: 7).fill(Palette.exposure.opacity(navigation.exposedOnly ? 0.3 : 0.12)))
+                            .foregroundStyle(Palette.exposure)
                     }
                     .buttonStyle(.plain)
                     .help("\(exposedCount) reachable from your network. Click to show only those.")
@@ -203,7 +205,7 @@ struct ContentView: View {
             Spacer()
             Button("Stop \(navigation.checked.count)", role: .destructive) { confirmingBulk = true }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(Palette.danger)
                 .disabled(navigation.checked.isEmpty)
         }
         .font(.system(size: 12))
@@ -254,11 +256,11 @@ struct PortRow: View {
                     if entry.exposed {
                         Image(systemName: "antenna.radiowaves.left.and.right")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Palette.exposure)
                             .help("Reachable from your network")
                     }
                     if !entry.connections.isEmpty {
-                        Circle().fill(Color.green).frame(width: 6, height: 6)
+                        Circle().fill(Palette.live).frame(width: 6, height: 6)
                             .help("\(entry.connections.count) open connection\(entry.connections.count == 1 ? "" : "s")")
                     }
                 }
@@ -266,7 +268,9 @@ struct PortRow: View {
                     Text(Explain.summary(entry))
                     if let memory = entry.memoryKB, memory > 0 {
                         Text(" · ")
-                        Text(Explain.memory(memory)).foregroundStyle(overLimit ? Color.orange : .secondary)
+                        Text(Explain.memory(memory))
+                            .foregroundStyle(overLimit ? Palette.memory : .secondary)
+                            .fontWeight(overLimit ? .semibold : .regular)
                     }
                 }
                 .font(.system(size: 11))
@@ -325,8 +329,8 @@ struct PortRow: View {
                     Actions.openInBrowser(entry)
                 }
                 IconButton(symbol: "arrow.clockwise", help: "Restart") { store.restart(entry) }
-                IconButton(symbol: "stop.circle", help: StopCopy.button(entry), tint: .red) {
-                    if StopCopy.needsConfirmation(entry) { confirming = true } else { store.stop(entry) }
+                IconButton(symbol: "stop.circle", help: StopCopy.button(entry), tint: Palette.danger) {
+                    if StopCopy.needsConfirmation(entry, preferences) { confirming = true } else { store.stop(entry) }
                 }
             }
         }
@@ -341,7 +345,7 @@ struct PortBadge: View {
         VStack(spacing: 1) {
             Text(String(port))
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(PortColor.color(for: port))
+                .foregroundStyle(Palette.port(port))
             if extra > 0 {
                 Text("+\(extra)")
                     .font(.system(size: 9, weight: .medium))
@@ -349,14 +353,7 @@ struct PortBadge: View {
             }
         }
         .frame(width: 54, height: 34)
-        .background(RoundedRectangle(cornerRadius: 6).fill(PortColor.color(for: port).opacity(0.13)))
-    }
-}
-
-enum PortColor {
-    static func color(for port: Int) -> Color {
-        let hue = (Double(port) * 0.618_033_988_75).truncatingRemainder(dividingBy: 1)
-        return Color(hue: hue, saturation: 0.62, brightness: 0.82)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Palette.port(port).opacity(0.12)))
     }
 }
 
@@ -408,19 +405,20 @@ struct MessageBar: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger)
             Text(text).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             Spacer()
             Button(action: dismiss) { Image(systemName: "xmark") }.buttonStyle(.plain).foregroundStyle(.secondary)
         }
         .padding(10)
-        .background(Color.orange.opacity(0.12))
+        .background(Palette.danger.opacity(0.1))
     }
 }
 
 enum StopCopy {
-    static func needsConfirmation(_ entry: PortEntry) -> Bool {
-        entry.kind != .server
+    @MainActor
+    static func needsConfirmation(_ entry: PortEntry, _ preferences: Preferences) -> Bool {
+        entry.kind != .server || preferences.confirmServers
     }
 
     static func button(_ entry: PortEntry) -> String {

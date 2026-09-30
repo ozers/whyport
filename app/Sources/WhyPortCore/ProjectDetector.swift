@@ -7,8 +7,8 @@ enum ProjectDetector {
     ]
 
     static func isRuntimeDirectory(_ path: String) -> Bool {
-        let fragments = ["/.gradle/", "/.m2/", "/node_modules/", "/Library/Containers/", "/Library/Caches/", "/kotlin/daemon"]
-        return fragments.contains { path.contains($0) }
+        let fragments = ["/.gradle/", "/.m2/", "/node_modules/", "/Library/Containers/", "/Library/Caches/", "/kotlin/daemon", ".app/Contents"]
+        return fragments.contains { path.contains($0) } || path.hasPrefix("/System/") || path.hasPrefix("/usr/")
     }
 
     static func detect(cwd: String?, home: String = NSHomeDirectory()) -> Project? {

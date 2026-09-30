@@ -42,7 +42,7 @@ struct DetailView: View {
                         .textSelection(.enabled)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentColor.opacity(0.09)))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Palette.why))
                     if entry.exposed { exposure }
                     usage
                     facts
@@ -79,7 +79,7 @@ struct DetailView: View {
             ? "If only this Mac needs it, bind it to 127.0.0.1."
             : "Publish it as 127.0.0.1:\(port):\(entry.bindings.first?.containerPort ?? port) to keep it local."
         return HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "antenna.radiowaves.left.and.right").foregroundStyle(.orange)
+            Image(systemName: "antenna.radiowaves.left.and.right").foregroundStyle(Palette.exposure)
             VStack(alignment: .leading, spacing: 4) {
                 Text("Reachable from your network").font(.system(size: 12, weight: .semibold))
                 Text(address.map { "Other devices on this network can open \($0). " } ?? "Other devices on this network can connect. ")
@@ -91,7 +91,7 @@ struct DetailView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.12)))
+        .background(RoundedRectangle(cornerRadius: 8).fill(Palette.exposure.opacity(0.12)))
     }
 
     @ViewBuilder private var usage: some View {
@@ -103,7 +103,7 @@ struct DetailView: View {
                     value: Explain.memory(entry.memoryKB),
                     samples: samples,
                     metric: \.memoryMB,
-                    color: (entry.memoryKB ?? 0) > preferences.memoryLimitMB * 1024 ? .orange : .blue,
+                    color: (entry.memoryKB ?? 0) > preferences.memoryLimitMB * 1024 ? Palette.memory : Palette.chartMemory,
                     limit: Double(preferences.memoryLimitMB)
                 )
                 UsageChart(
@@ -111,7 +111,7 @@ struct DetailView: View {
                     value: String(format: "%.1f%%", entry.cpu ?? 0),
                     samples: samples,
                     metric: \.cpu,
-                    color: .green,
+                    color: Palette.chartCPU,
                     limit: nil
                 )
             }
@@ -126,8 +126,8 @@ struct DetailView: View {
                         HStack(spacing: 6) {
                             Text(verbatim: binding.containerPort.map { "\(binding.port) → \($0)" } ?? String(binding.port))
                                 .font(.system(size: 12, design: .monospaced))
-                                .foregroundStyle(PortColor.color(for: binding.port))
-                            Text(binding.bind.label).foregroundStyle(binding.bind == .localhost ? Color.secondary : .orange)
+                                .foregroundStyle(Palette.port(binding.port))
+                            Text(binding.bind.label).foregroundStyle(binding.bind == .localhost ? Color.secondary : Palette.exposure)
                         }
                     }
                 }
@@ -196,7 +196,7 @@ struct DetailView: View {
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if member.pid == entry.pid {
-                        Text("listening").font(.system(size: 10)).foregroundStyle(.green)
+                        Text("listening").font(.system(size: 10)).foregroundStyle(Palette.live)
                     }
                 }
             }
@@ -246,15 +246,15 @@ struct DetailView: View {
             } else if store.stuck.contains(entry.id) {
                 Button("Force quit", role: .destructive) { store.stop(entry, force: true) }
                     .buttonStyle(.borderedProminent)
-                    .tint(.red)
+                    .tint(Palette.danger)
             } else {
                 Button("Restart") { store.restart(entry) }
                     .help(restartHelp)
                 Button(StopCopy.button(entry), role: .destructive) {
-                    if StopCopy.needsConfirmation(entry) { confirming = true } else { store.stop(entry) }
+                    if StopCopy.needsConfirmation(entry, preferences) { confirming = true } else { store.stop(entry) }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .tint(Palette.danger)
             }
         }
         .controlSize(.regular)
@@ -300,7 +300,7 @@ struct UsageChart: View {
                         }
                         if let limit, peak > limit * 0.6 {
                             RuleMark(y: .value("Limit", limit))
-                                .foregroundStyle(.orange.opacity(0.7))
+                                .foregroundStyle(Palette.memory.opacity(0.7))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
                         }
                     }
@@ -312,7 +312,7 @@ struct UsageChart: View {
             .frame(height: 44)
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+        .background(RoundedRectangle(cornerRadius: 8).fill(Palette.well))
     }
 }
 

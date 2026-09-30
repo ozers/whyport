@@ -82,7 +82,7 @@ enum Role {
         if databases.contains(role) { return .database }
         if role.contains("daemon") || role == "JDWP debugger" { return .daemon }
         if project != nil { return .server }
-        if command.contains(".app/Contents/") { return .app }
-        return .other
+        let bundled = command.split(separator: " ").first?.contains(".app/Contents/") ?? false
+        return bundled ? .app : .other
     }
 }

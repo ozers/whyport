@@ -67,6 +67,12 @@ final class PortStore: ObservableObject {
         apply(scanner.scan())
     }
 
+    func show(_ entries: [PortEntry], history: [String: [Sample]]) {
+        self.entries = entries
+        self.history = history
+        scannedAt = Date()
+    }
+
     private func apply(_ result: [PortEntry]) {
         let now = Date()
         entries = result

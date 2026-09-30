@@ -134,6 +134,34 @@ public struct PortEntry: Identifiable, Hashable, Sendable {
     public var kind: EntryKind
     public var group: [GroupMember] = []
 
+    public init(
+        id: String, pid: Int32, processName: String, user: String, command: String,
+        ppid: Int32? = nil, parentName: String? = nil, uptime: TimeInterval? = nil,
+        memoryKB: Int? = nil, cpu: Double? = nil, cwd: String? = nil,
+        project: Project? = nil, container: Container? = nil,
+        bindings: [PortBinding], connections: [Connection] = [],
+        role: String, kind: EntryKind, group: [GroupMember] = []
+    ) {
+        self.id = id
+        self.pid = pid
+        self.processName = processName
+        self.user = user
+        self.command = command
+        self.ppid = ppid
+        self.parentName = parentName
+        self.uptime = uptime
+        self.memoryKB = memoryKB
+        self.cpu = cpu
+        self.cwd = cwd
+        self.project = project
+        self.container = container
+        self.bindings = bindings
+        self.connections = connections
+        self.role = role
+        self.kind = kind
+        self.group = group
+    }
+
     public var ports: [Int] { bindings.map(\.port) }
     public var title: String { container?.name ?? project?.name ?? role }
     public var bind: Bind { Bind.classify(bindings.flatMap(\.hosts)) }

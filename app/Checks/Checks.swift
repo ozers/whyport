@@ -87,6 +87,7 @@ func projects() {
     check(project?.name == "shop", "package name from parent")
     check(project?.branch == "feature/login", "branch from HEAD")
     check(ProjectDetector.detect(cwd: daemon.path) == nil, "daemon folders are not projects")
+    check(ProjectDetector.detect(cwd: "/Applications/IntelliJ IDEA.app/Contents/MacOS") == nil, "app bundles are not projects")
 }
 
 func row(_ pid: Int32, _ ppid: Int32, _ command: String) -> PsRow {

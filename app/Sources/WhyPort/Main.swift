@@ -12,7 +12,8 @@ enum Main {
                 path: arguments[index + 1],
                 port: value("--port").flatMap(Int.init),
                 page: value("--page"),
-                dark: arguments.contains("--dark")
+                dark: arguments.contains("--dark"),
+                demo: arguments.contains("--demo")
             )
             MainActor.assumeIsolated { Snapshot.render(options) }
             return
@@ -63,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .store(in: &subscriptions)
 
         store.$entries
-            .combineLatest(preferences.$hidden, preferences.$memoryLimitMB)
+            .combineLatest(preferences.$hidden, preferences.$memoryLimitMB, preferences.$showCount)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.updateButton() }
             .store(in: &subscriptions)
@@ -72,8 +73,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateButton() {
         guard let button = statusItem?.button else { return }
         let count = store.entries.filter { $0.kind.isProject && !preferences.hidden.contains($0.identity) }.count
-        button.title = count > 0 ? " \(count)" : ""
-        button.contentTintColor = store.overLimit.isEmpty ? nil : .systemOrange
+        button.title = count > 0 && preferences.showCount ? " \(count)" : ""
+        button.contentTintColor = store.overLimit.isEmpty ? nil : .systemRed
         button.toolTip = store.overLimit.isEmpty
             ? "WhyPort · \(count) project server\(count == 1 ? "" : "s")"
             : "WhyPort · \(store.overLimit.map(\.title).joined(separator: ", ")) over the memory limit"
